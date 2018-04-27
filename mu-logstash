@@ -1,0 +1,120 @@
+#!/bin/bash
+### BEGIN INIT INFO  
+#  
+# Provides:          log_stash  
+# Short-Description: log_stash script  
+# Description:  	 log_stash start,stop,restart  
+#  
+### END INIT INFO
+
+#color
+_NORMAL="\033[0m"
+_BLACK="\033[30m"
+_RED="\033[31m"
+_GREEN="\033[32m"
+_YELLOW="\033[33m"
+_BLUE="\033[34m"
+_PURPLE="\033[35m"
+_SKY="\033[36m"
+_WHITE="\033[37m"
+_BLACK_="\033[1;30m"
+_RED_="\033[1;31m"
+_GREEN_="\033[1;32m"
+_YELLOW_="\033[1;33m"
+_BLUE_="\033[1;34m"
+_PURPLE_="\033[1;35m"
+_SKY_="\033[1;36m"
+_WHITE_="\033[1;37m"
+
+#CONST
+USER_NAME=`whoami`
+LOGSTASH_HOME=/app/logstash
+NAME=logstash
+SERVICE_DIR=${LOGSTASH_HOME}/bin/
+KAFKA_CONF_FILE=/app/conf/$NAME/kafka-pipeline.conf
+LOG_DIR=/log/$NAME/$NAME
+DATA_DIR=/data/$NAME/
+_JDK_HOME=/app/jdk
+RELOAD_CONFIG=--config.reload.automatic
+
+svr_pid=-1
+ulimit -c unlimited
+
+usage(){
+    printf "${_YELLOW_}usage: ${_NORMAL}`basename $0` [start | restart | stop | check | scene | record]\n"
+    echo -e "${_BLUE}if there is no ARGS then the script will search the un-started${_NORMAL}"
+    echo -e "${_BLUE}server service and start it.${_NORMAL}"
+}
+
+echo_success(){
+    printf "${_NORMAL}[${_GREEN}SUCCESS${_NORMAL}]\n"
+}
+echo_failed(){
+    printf "${_NORMAL}[${_RED} FAILED${_NORMAL}]\n"
+}
+
+check_service_exist(){
+	local  pid=`ps -ef | grep -w $USER_NAME | grep $NAME | grep $JAVA_HOME | awk '{print $2}'`
+#	echo $pid
+	if [ ${pid}x != "x" ] 
+		then
+			printf "\t${_YELLOW}with config file \"${_PURPLE_}${KAFKA_CONF_FILE}${_YELLOW}\": pid=${_GREEN}${pid}\t${_NORMAL}[${_GREEN}RUNNING${_NORMAL}]\n"
+			svr_pid=$pid
+		 else
+            printf "\t${_YELLOW}with config file \"${_PURPLE_}${KAFKA_CONF_FILE}${_YELLOW}\": \t\t${_NORMAL}[${_RED} STOPED${_NORMAL}]\n"
+	fi
+}
+
+start_service(){
+	#Todo read config
+	printf "\t${_YELLOW} executing ${KAFKA_CONF_FILE}...${_NORMAL}\t\t"
+	nohup ${SERVICE_DIR}${NAME} -f ${KAFKA_CONF_FILE} ${RELOAD_CONFIG}>${LOG_DIR} 2>&1  & > /dev/null  && echo_success || start_service_fail
+}
+
+_start_service(){
+	check_service_exist
+	if [ $svr_pid -lt 1 ];then start_service; fi
+      	sleep 2
+	check_service_exist
+#	echo $svr_pid
+	 if [ $svr_pid -lt 1 ];then printf "${_RED} start fail${_NORMAL}\n"; fi
+}
+
+kill_service(){
+	check_service_exist
+	if [ $svr_pid -ne -1 ]
+		then
+			 printf "${_YELLOW}killing running ${NAME}${_SKY_} $1 ${_YELLOW}with pid=${svr_pid}...${_NORMAL}\t\t"
+        	 kill -9 ${svr_pid} || exit 0
+       		 printf "[${_RED} KILLED${_NORMAL}]\n"
+		svr_pid=-1
+     fi
+}
+
+restart_service(){
+	kill_service 
+	  printf "${_YELLOW}############      restart${_SKY_} ${_YELLOW}service          ##############${_NORMAL}\n"
+	sleep 2
+	_start_service
+	if [ $svr_pid -ne -1 ]; then  printf "${_YELLOW_} ${NAME} restart succeed${_NORMAL}\n"; fi
+}
+
+
+set -e
+case $1 in
+	start)
+		printf "${_SKY_}TO Start${_NORMAL}\n"
+		_start_service
+		;;
+	stop)
+		printf "${_SKY_}To Stop${_NORMAL}\n"
+		kill_service
+		;;
+	restart)
+		printf "${_SKY_}To Restart${_NORMAL}\n"
+		restart_service
+		;;
+		*)
+		usage
+		;;
+esac
